@@ -10,7 +10,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "potato-seeds-production",
+      "database_name": "webapp-production",
       "database_id": "placeholder-will-be-replaced-after-creation"
     }
   ]

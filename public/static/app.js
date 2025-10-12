@@ -905,8 +905,195 @@ class PotatoSeedsApp {
     }
 
     showStaffLogin() {
-        // Placeholder for staff login functionality
-        alert('صفحة دخول الموظفين قيد التطوير');
+        const container = document.getElementById('main-content');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div id="staff-login-container" class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4">
+                <div class="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
+                    <div class="text-center mb-8">
+                        <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-user-shield text-3xl text-blue-600"></i>
+                        </div>
+                        <h2 class="text-3xl font-bold text-gray-800">دخول الموظفين</h2>
+                        <p class="text-gray-600 mt-2">أدخل بيانات الدخول للوصول لوحة التحكم</p>
+                    </div>
+                    
+                    <form id="staff-login-form" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">اسم المستخدم</label>
+                            <div class="relative">
+                                <input type="text" id="staff-username" required 
+                                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="أدخل اسم المستخدم">
+                                <i class="fas fa-user absolute left-3 top-3.5 text-gray-400"></i>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                            <div class="relative">
+                                <input type="password" id="staff-password" required 
+                                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="أدخل كلمة المرور">
+                                <i class="fas fa-lock absolute left-3 top-3.5 text-gray-400"></i>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors flex items-center justify-center">
+                            <i class="fas fa-sign-in-alt ml-2"></i>
+                            تسجيل الدخول
+                        </button>
+                    </form>
+                    
+                    <div class="mt-6 text-center">
+                        <button onclick="app.showSection('home')" class="text-blue-600 hover:text-blue-800 font-medium">
+                            <i class="fas fa-arrow-right ml-1"></i>العودة للصفحة الرئيسية
+                        </button>
+                    </div>
+                    
+                    <div class="mt-8 text-center text-sm text-gray-500">
+                        <p>للاختبار: admin / password123</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Setup form submission
+        document.getElementById('staff-login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleStaffLogin();
+        });
+    }
+
+    async handleStaffLogin() {
+        const username = document.getElementById('staff-username').value.trim();
+        const password = document.getElementById('staff-password').value;
+
+        if (!username || !password) {
+            this.showError('يرجى إدخال اسم المستخدم وكلمة المرور');
+            return;
+        }
+
+        this.showLoading(true);
+        try {
+            // For demo purposes - in production use actual authentication API
+            if (username === 'admin' && password === 'password123') {
+                this.currentStaff = { username: 'admin', role: 'admin', full_name: 'مدير النظام' };
+                this.showAdminDashboard();
+            } else {
+                this.showError('بيانات الدخول غير صحيحة');
+            }
+        } catch (error) {
+            this.showError('خطأ في تسجيل الدخول');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    showAdminDashboard() {
+        const container = document.getElementById('main-content');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="min-h-screen bg-gray-50">
+                <!-- Admin Header -->
+                <div class="bg-white shadow-sm border-b">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="flex justify-between items-center py-4">
+                            <div class="flex items-center space-x-4 space-x-reverse">
+                                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-seedling text-2xl text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h1 class="text-xl font-bold text-gray-900">لوحة التحكم الإدارية</h1>
+                                    <p class="text-sm text-gray-500">نظام حجز بذور البطاطا</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 space-x-reverse">
+                                <span class="text-gray-700">مرحباً، ${this.currentStaff.full_name}</span>
+                                <button onclick="app.showSection('home')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-sign-out-alt ml-1"></i>تسجيل الخروج
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Navigation -->
+                <div class="bg-white shadow-sm">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <nav class="flex space-x-8 space-x-reverse overflow-x-auto">
+                            <button onclick="app.showAdminSection('dashboard')" 
+                                class="admin-nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 text-gray-700 hover:text-blue-600 whitespace-nowrap transition-colors">
+                                <i class="fas fa-tachometer-alt ml-1"></i>لوحة القيادة
+                            </button>
+                            <button onclick="app.showAdminSection('quotas')" 
+                                class="admin-nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 text-gray-700 hover:text-blue-600 whitespace-nowrap transition-colors">
+                                <i class="fas fa-chart-pie ml-1"></i>إدارة الحصص
+                            </button>
+                            <button onclick="app.showAdminSection('reports')" 
+                                class="admin-nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 text-gray-700 hover:text-blue-600 whitespace-nowrap transition-colors">
+                                <i class="fas fa-chart-bar ml-1"></i>التقارير
+                            </button>
+                            <button onclick="app.showAdminSection('distributors')" 
+                                class="admin-nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 text-gray-700 hover:text-blue-600 whitespace-nowrap transition-colors">
+                                <i class="fas fa-users ml-1"></i>الموزعون
+                            </button>
+                            <button onclick="app.showAdminSection('reservations')" 
+                                class="admin-nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 text-gray-700 hover:text-blue-600 whitespace-nowrap transition-colors">
+                                <i class="fas fa-clipboard-list ml-1"></i>الحجوزات
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Admin Content -->
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    <div id="admin-content">
+                        <!-- Content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Initialize current staff property if not exists
+        if (!this.currentStaff) {
+            this.currentStaff = { username: 'admin', role: 'admin', full_name: 'مدير النظام' };
+        }
+
+        // Show default dashboard
+        this.showAdminSection('dashboard');
+    }
+
+    showAdminSection(sectionName) {
+        // Update active navigation
+        document.querySelectorAll('.admin-nav-btn').forEach(btn => {
+            btn.classList.remove('border-blue-500', 'text-blue-600');
+            btn.classList.add('border-transparent', 'text-gray-700');
+        });
+        
+        event.target.classList.remove('border-transparent', 'text-gray-700');
+        event.target.classList.add('border-blue-500', 'text-blue-600');
+
+        // Show section content
+        switch(sectionName) {
+            case 'dashboard':
+                this.showAdminDashboardContent();
+                break;
+            case 'quotas':
+                this.showQuotasManagement();
+                break;
+            case 'reports':
+                this.showReportsSection();
+                break;
+            case 'distributors':
+                this.showDistributorsSection();
+                break;
+            case 'reservations':
+                this.showReservationsManagement();
+                break;
+        }
     }
 
     showLoading(show) {
@@ -1283,6 +1470,657 @@ class PotatoSeedsApp {
         setTimeout(() => {
             messageEl.remove();
         }, 5000);
+    }
+
+    // ======================================
+    // Admin Dashboard Functions
+    // ======================================
+
+    async showAdminDashboardContent() {
+        const content = document.getElementById('admin-content');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-map-marked-alt text-xl text-blue-600"></i>
+                        </div>
+                        <div class="mr-4">
+                            <p class="text-sm font-medium text-gray-600">إجمالي المحافظات</p>
+                            <p class="text-2xl font-semibold text-gray-900" id="total-provinces">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-weight text-xl text-green-600"></i>
+                        </div>
+                        <div class="mr-4">
+                            <p class="text-sm font-medium text-gray-600">إجمالي الحصص (طن)</p>
+                            <p class="text-2xl font-semibold text-gray-900" id="total-quotas">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-chart-line text-xl text-orange-600"></i>
+                        </div>
+                        <div class="mr-4">
+                            <p class="text-sm font-medium text-gray-600">الكمية المستهلكة (طن)</p>
+                            <p class="text-2xl font-semibold text-gray-900" id="consumed-quota">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-percentage text-xl text-red-600"></i>
+                        </div>
+                        <div class="mr-4">
+                            <p class="text-sm font-medium text-gray-600">نسبة الاستهلاك</p>
+                            <p class="text-2xl font-semibold text-gray-900" id="consumption-rate">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Recent Activity -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="p-6 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">النشاط الأخير</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="recent-activity" class="space-y-4">
+                            <!-- Activity items will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="p-6 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">إجراءات سريعة</h3>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <button onclick="app.showAdminSection('quotas')" class="w-full text-right bg-blue-50 hover:bg-blue-100 text-blue-700 p-4 rounded-lg transition-colors">
+                            <i class="fas fa-edit ml-2"></i>إدارة حصص المحافظات
+                        </button>
+                        <button onclick="app.showAdminSection('reports')" class="w-full text-right bg-green-50 hover:bg-green-100 text-green-700 p-4 rounded-lg transition-colors">
+                            <i class="fas fa-chart-bar ml-2"></i>عرض التقارير المفصلة
+                        </button>
+                        <button onclick="app.showAdminSection('distributors')" class="w-full text-right bg-orange-50 hover:bg-orange-100 text-orange-700 p-4 rounded-lg transition-colors">
+                            <i class="fas fa-users ml-2"></i>إدارة الموزعين
+                        </button>
+                        <button onclick="app.showAdminSection('reservations')" class="w-full text-right bg-purple-50 hover:bg-purple-100 text-purple-700 p-4 rounded-lg transition-colors">
+                            <i class="fas fa-clipboard-list ml-2"></i>مراجعة الحجوزات
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Load dashboard data
+        this.loadDashboardStats();
+    }
+
+    async loadDashboardStats() {
+        try {
+            const [quotasResponse, consumptionResponse] = await Promise.all([
+                axios.get('/api/admin/quotas-report'),
+                axios.get('/api/admin/consumption-stats')
+            ]);
+
+            if (quotasResponse.data.success && consumptionResponse.data.success) {
+                const quotasData = quotasResponse.data.data;
+                const consumptionData = consumptionResponse.data.data;
+
+                const totalProvinces = quotasData.length;
+                const totalQuotas = quotasData.reduce((sum, item) => sum + item.quota_tons, 0);
+                const consumedQuota = quotasData.reduce((sum, item) => sum + item.consumed_quota, 0);
+                const consumptionRate = totalQuotas > 0 ? ((consumedQuota / totalQuotas) * 100).toFixed(1) : 0;
+
+                document.getElementById('total-provinces').textContent = totalProvinces;
+                document.getElementById('total-quotas').textContent = totalQuotas.toLocaleString();
+                document.getElementById('consumed-quota').textContent = consumedQuota.toLocaleString();
+                document.getElementById('consumption-rate').textContent = consumptionRate + '%';
+            }
+        } catch (error) {
+            console.error('Error loading dashboard stats:', error);
+        }
+    }
+
+    async showQuotasManagement() {
+        const content = document.getElementById('admin-content');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold text-gray-900">إدارة حصص المحافظات</h2>
+                        <button onclick="app.refreshQuotasData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-refresh ml-1"></i>تحديث البيانات
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div id="quotas-table-container">
+                        <div class="flex justify-center items-center py-8">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            <span class="mr-2">جاري تحميل البيانات...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.loadQuotasData();
+    }
+
+    async loadQuotasData() {
+        try {
+            const response = await axios.get('/api/admin/quotas-report');
+            if (response.data.success) {
+                this.renderQuotasTable(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error loading quotas data:', error);
+            this.showError('خطأ في تحميل بيانات الحصص');
+        }
+    }
+
+    renderQuotasTable(quotasData) {
+        const container = document.getElementById('quotas-table-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المحافظة</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">الحصة الكلية (طن)</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">المستهلك (طن)</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">المتبقي (طن)</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">نسبة الاستهلاك</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${quotasData.map(item => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">${item.province_name}</div>
+                                    <div class="text-sm text-gray-500">${item.total_reservations} حجز إجمالي</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm text-gray-900 font-medium">${item.quota_tons}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm text-red-600 font-medium">${item.consumed_quota}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm text-green-600 font-medium">${item.remaining_quota}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <div class="flex items-center justify-center">
+                                        <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                            <div class="bg-${item.consumption_percentage > 80 ? 'red' : item.consumption_percentage > 60 ? 'yellow' : 'green'}-600 h-2 rounded-full" 
+                                                style="width: ${Math.min(item.consumption_percentage, 100)}%"></div>
+                                        </div>
+                                        <span class="text-sm font-medium ${item.consumption_percentage > 80 ? 'text-red-600' : item.consumption_percentage > 60 ? 'text-yellow-600' : 'text-green-600'}">
+                                            ${item.consumption_percentage}%
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <button onclick="app.editProvinceQuota(${item.id}, '${item.province_name}', ${item.quota_tons}, ${item.consumed_quota})" 
+                                        class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded transition-colors">
+                                        <i class="fas fa-edit ml-1"></i>تعديل الحصة
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    editProvinceQuota(provinceId, provinceName, currentQuota, consumedQuota) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">تعديل حصة ${provinceName}</h3>
+                    <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-600">الحصة الحالية:</span>
+                                <span class="font-medium text-gray-900">${currentQuota} طن</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">المستهلك:</span>
+                                <span class="font-medium text-red-600">${consumedQuota} طن</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الحصة الجديدة (طن)</label>
+                    <input type="number" id="new-quota-${provinceId}" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        value="${currentQuota}" min="${consumedQuota}" step="0.1">
+                    <p class="text-sm text-gray-500 mt-1">لا يمكن أن تكون أقل من الكمية المستهلكة (${consumedQuota} طن)</p>
+                </div>
+                
+                <div class="flex space-x-3 space-x-reverse">
+                    <button onclick="app.saveProvinceQuota(${provinceId}, '${provinceName}')" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors">
+                        حفظ التعديل
+                    </button>
+                    <button onclick="this.closest('.fixed').remove()" 
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors">
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    async saveProvinceQuota(provinceId, provinceName) {
+        const newQuotaInput = document.getElementById(`new-quota-${provinceId}`);
+        const newQuota = parseFloat(newQuotaInput.value);
+        
+        if (!newQuota || newQuota <= 0) {
+            this.showError('يرجى إدخال حصة صحيحة');
+            return;
+        }
+
+        this.showLoading(true);
+        try {
+            const response = await axios.put(`/api/admin/provinces/${provinceId}/quota`, {
+                quota_tons: newQuota
+            });
+
+            if (response.data.success) {
+                this.showSuccess(`تم تحديث حصة ${provinceName} بنجاح`);
+                document.querySelector('.fixed.inset-0').remove();
+                this.loadQuotasData(); // Refresh the table
+            } else {
+                this.showError(response.data.error);
+            }
+        } catch (error) {
+            this.showError('خطأ في تحديث الحصة');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    refreshQuotasData() {
+        this.loadQuotasData();
+        this.showSuccess('تم تحديث البيانات');
+    }
+
+    async showReportsSection() {
+        const content = document.getElementById('admin-content');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div class="space-y-6">
+                <!-- Reports Header -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-4">تقارير شاملة للاستهلاك والحصص</h2>
+                    <div class="flex flex-wrap gap-4">
+                        <button onclick="app.generateConsumptionReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-chart-pie ml-1"></i>تقرير الاستهلاك
+                        </button>
+                        <button onclick="app.generateQuotasReport()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-balance-scale ml-1"></i>تقرير الحصص
+                        </button>
+                        <button onclick="app.generateDistributorsReport()" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-users ml-1"></i>تقرير الموزعين
+                        </button>
+                        <button onclick="app.exportReportsPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-file-pdf ml-1"></i>تصدير PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Reports Content -->
+                <div id="reports-content">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+                        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-chart-bar text-2xl text-gray-400"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">اختر نوع التقرير</h3>
+                        <p class="text-gray-500">استخدم الأزرار أعلاه لإنشاء التقارير المختلفة</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async generateConsumptionReport() {
+        const container = document.getElementById('reports-content');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">تقرير استهلاك الحصص حسب المحافظة</h3>
+                </div>
+                <div class="p-6">
+                    <div class="flex justify-center items-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span class="mr-2">جاري إنشاء التقرير...</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        try {
+            const response = await axios.get('/api/admin/consumption-stats');
+            if (response.data.success) {
+                this.renderConsumptionReport(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error generating consumption report:', error);
+            this.showError('خطأ في إنشاء تقرير الاستهلاك');
+        }
+    }
+
+    renderConsumptionReport(data) {
+        const container = document.getElementById('reports-content');
+        if (!container) return;
+
+        const totalQuota = data.reduce((sum, item) => sum + item.quota_tons, 0);
+        const totalConsumed = data.reduce((sum, item) => sum + item.consumed_quota, 0);
+        const totalRemaining = data.reduce((sum, item) => sum + item.remaining_quota, 0);
+
+        container.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-900">تقرير استهلاك الحصص حسب المحافظة</h3>
+                        <div class="text-sm text-gray-500">تاريخ التقرير: ${new Date().toLocaleDateString('ar-YE')}</div>
+                    </div>
+                </div>
+                
+                <!-- Summary Cards -->
+                <div class="p-6 border-b border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="text-sm text-blue-600 font-medium">إجمالي الحصص</div>
+                            <div class="text-2xl font-bold text-blue-700">${totalQuota.toLocaleString()} طن</div>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg">
+                            <div class="text-sm text-red-600 font-medium">المستهلك</div>
+                            <div class="text-2xl font-bold text-red-700">${totalConsumed.toLocaleString()} طن</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="text-sm text-green-600 font-medium">المتبقي</div>
+                            <div class="text-2xl font-bold text-green-700">${totalRemaining.toLocaleString()} طن</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Table -->
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المحافظة</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الحصة المقررة</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">المستهلك</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">المتبقي</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">نسبة الاستهلاك</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">عدد المزارعين</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">عدد الحجوزات</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${data.map(item => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.province_name}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${item.quota_tons}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-red-600 font-medium">${item.consumed_quota}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-green-600 font-medium">${item.remaining_quota}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                item.consumption_percentage > 80 ? 'bg-red-100 text-red-800' :
+                                                item.consumption_percentage > 60 ? 'bg-yellow-100 text-yellow-800' :
+                                                'bg-green-100 text-green-800'
+                                            }">
+                                                ${item.consumption_percentage}%
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${item.total_farmers}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${item.total_reservations}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async showDistributorsSection() {
+        const content = document.getElementById('admin-content');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold text-gray-900">إدارة الموزعين ونسب العمولة</h2>
+                        <button onclick="app.refreshDistributorsData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-refresh ml-1"></i>تحديث البيانات
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div id="distributors-table-container">
+                        <div class="flex justify-center items-center py-8">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            <span class="mr-2">جاري تحميل البيانات...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.loadDistributorsData();
+    }
+
+    async loadDistributorsData() {
+        try {
+            const response = await axios.get('/api/admin/distributors');
+            if (response.data.success) {
+                this.renderDistributorsTable(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error loading distributors data:', error);
+            this.showError('خطأ في تحميل بيانات الموزعين');
+        }
+    }
+
+    renderDistributorsTable(distributorsData) {
+        const container = document.getElementById('distributors-table-container');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الموزع</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">المحافظة</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">نسبة العمولة</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">عدد الحجوزات</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">الحالة</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${distributorsData.map(item => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">${item.name}</div>
+                                    <div class="text-sm text-gray-500">${item.phone}</div>
+                                    <div class="text-sm text-gray-500">${item.address}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm text-gray-900">${item.province_name}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        ${item.commission_percentage}%
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm text-gray-900">${item.total_reservations}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                        item.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }">
+                                        ${item.is_active ? 'نشط' : 'غير نشط'}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <button onclick="app.editDistributorCommission(${item.id}, '${item.name}', ${item.commission_percentage})" 
+                                        class="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded transition-colors mr-2">
+                                        <i class="fas fa-edit ml-1"></i>تعديل العمولة
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    editDistributorCommission(distributorId, distributorName, currentCommission) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">تعديل عمولة ${distributorName}</h3>
+                    <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                        <div class="text-sm">
+                            <span class="text-gray-600">العمولة الحالية:</span>
+                            <span class="font-medium text-gray-900">${currentCommission}%</span>
+                        </div>
+                    </div>
+                    
+                    <label class="block text-sm font-medium text-gray-700 mb-2">نسبة العمولة الجديدة (%)</label>
+                    <input type="number" id="new-commission-${distributorId}" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        value="${currentCommission}" min="0" max="100" step="0.1">
+                    <p class="text-sm text-gray-500 mt-1">يجب أن تكون بين 0% و 100%</p>
+                </div>
+                
+                <div class="flex space-x-3 space-x-reverse">
+                    <button onclick="app.saveDistributorCommission(${distributorId}, '${distributorName}')" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors">
+                        حفظ التعديل
+                    </button>
+                    <button onclick="this.closest('.fixed').remove()" 
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors">
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    async saveDistributorCommission(distributorId, distributorName) {
+        const newCommissionInput = document.getElementById(`new-commission-${distributorId}`);
+        const newCommission = parseFloat(newCommissionInput.value);
+        
+        if (isNaN(newCommission) || newCommission < 0 || newCommission > 100) {
+            this.showError('يرجى إدخال نسبة عمولة صحيحة بين 0% و 100%');
+            return;
+        }
+
+        this.showLoading(true);
+        try {
+            const response = await axios.put(`/api/admin/distributors/${distributorId}/commission`, {
+                commission_percentage: newCommission
+            });
+
+            if (response.data.success) {
+                this.showSuccess(`تم تحديث عمولة ${distributorName} بنجاح`);
+                document.querySelector('.fixed.inset-0').remove();
+                this.loadDistributorsData(); // Refresh the table
+            } else {
+                this.showError(response.data.error);
+            }
+        } catch (error) {
+            this.showError('خطأ في تحديث العمولة');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    refreshDistributorsData() {
+        this.loadDistributorsData();
+        this.showSuccess('تم تحديث البيانات');
+    }
+
+    async showReservationsManagement() {
+        const content = document.getElementById('admin-content');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-clipboard-list text-2xl text-gray-400"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">إدارة الحجوزات</h3>
+                <p class="text-gray-500 mb-4">هذا القسم قيد التطوير</p>
+                <p class="text-sm text-gray-400">سيتم إضافة إدارة شاملة للحجوزات قريباً</p>
+            </div>
+        `;
+    }
+
+    // Add success message method
+    showSuccess(message) {
+        this.showMessage(message, 'success');
+    }
+
+    showError(message) {
+        this.showMessage(message, 'error');
     }
 }
 

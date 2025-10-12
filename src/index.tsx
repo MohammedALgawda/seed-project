@@ -183,6 +183,167 @@ app.get('/api/farmers/:farmerId/reservations', async (c) => {
   }
 });
 
+// ======================================
+// Admin APIs for Quotas and Reports Management
+// ======================================
+
+// Update province quota (Admin only)
+app.put('/api/admin/provinces/:id/quota', async (c) => {
+  try {
+    const provinceId = c.req.param('id');
+    const { quota_tons } = await c.req.json();
+    
+    if (!quota_tons || quota_tons <= 0) {
+      return c.json({ success: false, error: 'يجب أن تكون الحصة أكبر من صفر' }, 400);
+    }
+
+    // Get current province data
+    const province = await c.env.DB.prepare(`
+      SELECT quota_tons, remaining_quota FROM provinces WHERE id = ?
+    `).bind(provinceId).first();
+
+    if (!province) {
+      return c.json({ success: false, error: 'المحافظة غير موجودة' }, 404);
+    }
+
+    // Calculate new remaining quota
+    const consumedQuota = province.quota_tons - province.remaining_quota;
+    const newRemainingQuota = quota_tons - consumedQuota;
+
+    if (newRemainingQuota < 0) {
+      return c.json({ 
+        success: false, 
+        error: `لا يمكن تقليل الحصة إلى أقل من الكمية المستهلكة (${consumedQuota} طن)` 
+      }, 400);
+    }
+
+    await c.env.DB.prepare(`
+      UPDATE provinces 
+      SET quota_tons = ?, remaining_quota = ? 
+      WHERE id = ?
+    `).bind(quota_tons, newRemainingQuota, provinceId).run();
+
+    return c.json({ 
+      success: true, 
+      message: 'تم تحديث الحصة بنجاح',
+      data: { 
+        quota_tons: quota_tons,
+        remaining_quota: newRemainingQuota,
+        consumed_quota: consumedQuota
+      }
+    });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في تحديث الحصة' }, 500);
+  }
+});
+
+// Get detailed quotas report
+app.get('/api/admin/quotas-report', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        p.id,
+        p.name as province_name,
+        p.quota_tons,
+        p.remaining_quota,
+        (p.quota_tons - p.remaining_quota) as consumed_quota,
+        ROUND(((p.quota_tons - p.remaining_quota) * 100.0 / p.quota_tons), 2) as consumption_percentage,
+        COUNT(r.id) as total_reservations,
+        COUNT(CASE WHEN r.status = 'approved' THEN 1 END) as approved_reservations,
+        COUNT(CASE WHEN r.status = 'pending' THEN 1 END) as pending_reservations
+      FROM provinces p
+      LEFT JOIN reservations r ON p.id = r.province_id
+      WHERE p.is_active = 1
+      GROUP BY p.id, p.name, p.quota_tons, p.remaining_quota
+      ORDER BY consumption_percentage DESC
+    `).all();
+
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب تقرير الحصص' }, 500);
+  }
+});
+
+// Get distributors with commission settings
+app.get('/api/admin/distributors', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        d.id,
+        d.name,
+        d.commission_percentage,
+        d.phone,
+        d.address,
+        d.is_active,
+        p.name as province_name,
+        COUNT(r.id) as total_reservations
+      FROM distributors d
+      LEFT JOIN provinces p ON d.province_id = p.id
+      LEFT JOIN reservations r ON d.id = r.distributor_id
+      GROUP BY d.id, d.name, d.commission_percentage, d.phone, d.address, d.is_active, p.name
+      ORDER BY p.name, d.name
+    `).all();
+
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب بيانات الموزعين' }, 500);
+  }
+});
+
+// Update distributor commission percentage
+app.put('/api/admin/distributors/:id/commission', async (c) => {
+  try {
+    const distributorId = c.req.param('id');
+    const { commission_percentage } = await c.req.json();
+    
+    if (commission_percentage < 0 || commission_percentage > 100) {
+      return c.json({ success: false, error: 'نسبة العمولة يجب أن تكون بين 0 و 100%' }, 400);
+    }
+
+    await c.env.DB.prepare(`
+      UPDATE distributors 
+      SET commission_percentage = ? 
+      WHERE id = ?
+    `).bind(commission_percentage, distributorId).run();
+
+    return c.json({ 
+      success: true, 
+      message: 'تم تحديث نسبة العمولة بنجاح'
+    });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في تحديث نسبة العمولة' }, 500);
+  }
+});
+
+// Get consumption statistics by province
+app.get('/api/admin/consumption-stats', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        p.name as province_name,
+        p.quota_tons,
+        p.remaining_quota,
+        (p.quota_tons - p.remaining_quota) as consumed_quota,
+        ROUND(((p.quota_tons - p.remaining_quota) * 100.0 / p.quota_tons), 1) as consumption_percentage,
+        COUNT(DISTINCT f.id) as total_farmers,
+        COUNT(DISTINCT r.id) as total_reservations,
+        COALESCE(SUM(CASE WHEN r.status = 'approved' THEN ri.quantity_kg ELSE 0 END), 0) as approved_quantity,
+        COALESCE(SUM(CASE WHEN r.status = 'pending' THEN ri.quantity_kg ELSE 0 END), 0) as pending_quantity
+      FROM provinces p
+      LEFT JOIN farmers f ON p.id = f.province_id
+      LEFT JOIN reservations r ON p.id = r.province_id
+      LEFT JOIN reservation_items ri ON r.id = ri.reservation_id
+      WHERE p.is_active = 1
+      GROUP BY p.id, p.name, p.quota_tons, p.remaining_quota
+      ORDER BY consumed_quota DESC
+    `).all();
+
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب إحصائيات الاستهلاك' }, 500);
+  }
+});
+
 // Main page
 app.get('/', (c) => {
   return c.html(`
