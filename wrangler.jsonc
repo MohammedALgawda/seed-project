@@ -1,7 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "potato-seeds-reservation",
-  "main": "src/index.tsx",
+  "name": "potato-seeds-yemen",
   "compatibility_date": "2024-01-01",
   "compatibility_flags": ["nodejs_compat"],
   "pages_build_output_dir": "./dist",
@@ -10,8 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "webapp-production",
-      "database_id": "placeholder-will-be-replaced-after-creation"
+      "database_name": "potato-seeds-yemen-db",
+      "database_id": "e3928095-320c-4caf-868e-8ae2f966e151"
     }
   ]
 }

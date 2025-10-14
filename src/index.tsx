@@ -386,11 +386,11 @@ app.get('/', (c) => {
                     <div class="hidden md:flex items-center space-x-4 space-x-reverse text-sm text-gray-600">
                         <div class="flex items-center">
                             <i class="fas fa-phone-alt ml-2"></i>
-                            <span>+964 770 123 4567</span>
+                            <span>+967 777 123 456</span>
                         </div>
                         <div class="flex items-center">
                             <i class="fas fa-envelope ml-2"></i>
-                            <span>info@potato-seeds.iq</span>
+                            <span>info@potato-seeds.ye</span>
                         </div>
                     </div>
                 </div>
@@ -426,7 +426,7 @@ app.get('/', (c) => {
         </nav>
 
         <!-- Main Content -->
-        <main class="container mx-auto px-6 py-8">
+        <main id="main-content" class="container mx-auto px-6 py-8">
             <!-- Welcome Section -->
             <section id="home-section">
                 <div class="text-center mb-12">
@@ -544,7 +544,7 @@ app.get('/', (c) => {
                             </div>
                             <h3 class="text-xl font-bold">نظام حجز البذور</h3>
                         </div>
-                        <p class="text-gray-300 text-sm">منصة إلكترونية موثوقة لحجز وتوزيع بذور البطاطا عالية الجودة في العراق</p>
+                        <p class="text-gray-300 text-sm">منصة إلكترونية موثوقة لحجز وتوزيع بذور البطاطا عالية الجودة في اليمن</p>
                     </div>
                     
                     <div>
@@ -560,9 +560,9 @@ app.get('/', (c) => {
                     <div>
                         <h4 class="text-lg font-bold mb-4">معلومات التواصل</h4>
                         <ul class="space-y-2 text-sm text-gray-300">
-                            <li><i class="fas fa-phone ml-2"></i>+964 770 123 4567</li>
-                            <li><i class="fas fa-envelope ml-2"></i>info@potato-seeds.iq</li>
-                            <li><i class="fas fa-map-marker-alt ml-2"></i>بغداد، العراق</li>
+                            <li><i class="fas fa-phone ml-2"></i>+967 777 123 456</li>
+                            <li><i class="fas fa-envelope ml-2"></i>info@potato-seeds.ye</li>
+                            <li><i class="fas fa-map-marker-alt ml-2"></i>صنعاء، اليمن</li>
                         </ul>
                     </div>
                     
@@ -577,7 +577,7 @@ app.get('/', (c) => {
                 </div>
                 
                 <div class="border-t border-gray-700 mt-8 pt-8 text-center text-sm text-gray-400">
-                    <p>&copy; 2024 نظام حجز بذور البطاطا. جميع الحقوق محفوظة.</p>
+                    <p>&copy; 2024 نظام حجز بذور البطاطا - اليمن. جميع الحقوق محفوظة.</p>
                 </div>
             </div>
         </footer>

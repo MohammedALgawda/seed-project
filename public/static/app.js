@@ -154,7 +154,7 @@ class PotatoSeedsApp {
                     <div class="space-y-2 text-sm">
                         <div class="flex justify-between">
                             <span class="text-gray-500">السعر لكل كيلو:</span>
-                            <span class="font-bold text-green-600">${this.formatPrice(variety.price_per_kg)} د.ع</span>
+                            <span class="font-bold text-green-600">${this.formatPrice(variety.price_per_kg)} ر.ي</span>
                         </div>
                         <div class="flex justify-between">
                             <span class="text-gray-500">الحد الأدنى للطلب:</span>
@@ -265,7 +265,7 @@ class PotatoSeedsApp {
                         <div class="border-t border-green-300 pt-4 mt-4">
                             <div class="flex justify-between text-lg font-bold">
                                 <span>المجموع الكلي:</span>
-                                <span id="total-amount">0 د.ع</span>
+                                <span id="total-amount">0 ر.ي</span>
                             </div>
                             <div class="flex justify-between text-sm text-gray-600">
                                 <span>إجمالي الكمية:</span>
@@ -600,7 +600,7 @@ class PotatoSeedsApp {
                 <div class="text-sm space-y-1 mb-4">
                     <div class="flex justify-between">
                         <span>السعر:</span>
-                        <span class="font-bold text-green-600">${this.formatPrice(variety.price_per_kg)} د.ع/كيلو</span>
+                        <span class="font-bold text-green-600">${this.formatPrice(variety.price_per_kg)} ر.ي/كيلو</span>
                     </div>
                     <div class="flex justify-between text-xs text-gray-500">
                         <span>الحد الأدنى: ${variety.min_order_kg} كيلو</span>
@@ -728,9 +728,9 @@ class PotatoSeedsApp {
                 <div class="flex justify-between items-center py-2 border-b border-green-200 last:border-b-0">
                     <div>
                         <span class="font-medium">${item.variety_name}</span>
-                        <span class="text-sm text-gray-500 block">${item.quantity_kg} كيلو × ${this.formatPrice(item.unit_price)} د.ع</span>
+                        <span class="text-sm text-gray-500 block">${item.quantity_kg} كيلو × ${this.formatPrice(item.unit_price)} ر.ي</span>
                     </div>
-                    <span class="font-bold text-green-600">${this.formatPrice(item.total_price)} د.ع</span>
+                    <span class="font-bold text-green-600">${this.formatPrice(item.total_price)} ر.ي</span>
                 </div>
             `).join('');
         }
@@ -740,7 +740,7 @@ class PotatoSeedsApp {
         const totalAmount = this.cart.reduce((sum, item) => sum + item.total_price, 0);
 
         document.getElementById('total-quantity').textContent = `${totalQuantity} كيلو`;
-        document.getElementById('total-amount').textContent = `${this.formatPrice(totalAmount)} د.ع`;
+        document.getElementById('total-amount').textContent = `${this.formatPrice(totalAmount)} ر.ي`;
     }
 
     renderStatusForm() {
@@ -825,7 +825,7 @@ class PotatoSeedsApp {
                         <div class="flex justify-between items-start mb-4">
                             <div>
                                 <h5 class="text-lg font-bold text-gray-800">حجز رقم #${reservation.id}</h5>
-                                <p class="text-gray-600">تاريخ الطلب: ${new Date(reservation.created_at).toLocaleDateString('ar-IQ')}</p>
+                                <p class="text-gray-600">تاريخ الطلب: ${new Date(reservation.created_at).toLocaleDateString('ar-YE')}</p>
                             </div>
                             <span class="status-${reservation.status} px-3 py-1 rounded-full text-sm font-medium">
                                 ${this.getStatusText(reservation.status)}
@@ -846,11 +846,11 @@ class PotatoSeedsApp {
                             </div>
                             <div>
                                 <span class="text-gray-500">إجمالي المبلغ:</span>
-                                <span class="font-medium mr-2 text-green-600">${this.formatPrice(reservation.total_amount)} د.ع</span>
+                                <span class="font-medium mr-2 text-green-600">${this.formatPrice(reservation.total_amount)} ر.ي</span>
                             </div>
                             <div>
                                 <span class="text-gray-500">موعد التسليم:</span>
-                                <span class="font-medium mr-2">${new Date(reservation.delivery_date).toLocaleDateString('ar-IQ')}</span>
+                                <span class="font-medium mr-2">${new Date(reservation.delivery_date).toLocaleDateString('ar-YE')}</span>
                             </div>
                             ${reservation.distributor_name ? `
                             <div>
@@ -883,7 +883,7 @@ class PotatoSeedsApp {
     }
 
     formatPrice(price) {
-        return new Intl.NumberFormat('ar-IQ').format(price);
+        return new Intl.NumberFormat('ar-YE').format(price);
     }
 
     sortVarieties(sortBy) {
@@ -1290,15 +1290,15 @@ class PotatoSeedsApp {
                         <div class="flex justify-between items-center border-b border-green-200 pb-2">
                             <div>
                                 <div class="font-medium">${item.variety_name}</div>
-                                <div class="text-sm text-gray-600">${item.quantity_kg} كيلو × ${this.formatPrice(item.unit_price)} د.ع</div>
+                                <div class="text-sm text-gray-600">${item.quantity_kg} كيلو × ${this.formatPrice(item.unit_price)} ر.ي</div>
                             </div>
-                            <div class="font-bold text-green-700">${this.formatPrice(item.total_price)} د.ع</div>
+                            <div class="font-bold text-green-700">${this.formatPrice(item.total_price)} ر.ي</div>
                         </div>
                     `).join('')}
                     <div class="border-t-2 border-green-300 pt-3">
                         <div class="flex justify-between text-lg font-bold">
                             <span>المجموع الكلي:</span>
-                            <span class="text-green-700">${this.formatPrice(totalAmount)} د.ع</span>
+                            <span class="text-green-700">${this.formatPrice(totalAmount)} ر.ي</span>
                         </div>
                         <div class="flex justify-between text-sm text-gray-600">
                             <span>إجمالي الكمية:</span>
@@ -1329,7 +1329,7 @@ class PotatoSeedsApp {
 
             deliverySummary.innerHTML = `
                 <div class="space-y-2">
-                    <div><strong>تاريخ التسليم:</strong> ${new Date(deliveryDate).toLocaleDateString('ar-IQ')}</div>
+                    <div><strong>تاريخ التسليم:</strong> ${new Date(deliveryDate).toLocaleDateString('ar-YE')}</div>
                     <div><strong>طريقة التوزيع:</strong> ${deliveryMethod}</div>
                     ${distributorInfo}
                     ${notes ? `<div><strong>ملاحظات:</strong> ${notes}</div>` : ''}
