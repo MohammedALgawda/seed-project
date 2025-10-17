@@ -2103,15 +2103,761 @@ class PotatoSeedsApp {
         if (!content) return;
 
         content.innerHTML = `
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-clipboard-list text-2xl text-gray-400"></i>
+            <div class="space-y-6">
+                <!-- Statistics Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-clipboard-list text-blue-600"></i>
+                            </div>
+                            <div class="mr-3">
+                                <p class="text-sm font-medium text-gray-600">إجمالي الحجوزات</p>
+                                <p class="text-xl font-semibold text-gray-900" id="total-reservations">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-clock text-yellow-600"></i>
+                            </div>
+                            <div class="mr-3">
+                                <p class="text-sm font-medium text-gray-600">في الانتظار</p>
+                                <p class="text-xl font-semibold text-gray-900" id="pending-reservations">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-check-circle text-green-600"></i>
+                            </div>
+                            <div class="mr-3">
+                                <p class="text-sm font-medium text-gray-600">تمت الموافقة</p>
+                                <p class="text-xl font-semibold text-gray-900" id="approved-reservations">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-times-circle text-red-600"></i>
+                            </div>
+                            <div class="mr-3">
+                                <p class="text-sm font-medium text-gray-600">مرفوضة</p>
+                                <p class="text-xl font-semibold text-gray-900" id="rejected-reservations">-</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-truck text-purple-600"></i>
+                            </div>
+                            <div class="mr-3">
+                                <p class="text-sm font-medium text-gray-600">تم التسليم</p>
+                                <p class="text-xl font-semibold text-gray-900" id="delivered-reservations">-</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">إدارة الحجوزات</h3>
-                <p class="text-gray-500 mb-4">هذا القسم قيد التطوير</p>
-                <p class="text-sm text-gray-400">سيتم إضافة إدارة شاملة للحجوزات قريباً</p>
+
+                <!-- Reservations Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-xl font-semibold text-gray-900">إدارة الحجوزات</h2>
+                            <div class="flex space-x-3 space-x-reverse">
+                                <select id="status-filter" class="border border-gray-300 rounded-lg px-3 py-2">
+                                    <option value="">جميع الحالات</option>
+                                    <option value="pending">في الانتظار</option>
+                                    <option value="approved">تمت الموافقة</option>
+                                    <option value="rejected">مرفوضة</option>
+                                    <option value="delivered">تم التسليم</option>
+                                </select>
+                                <button onclick="app.refreshReservationsData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-refresh ml-1"></i>تحديث
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="reservations-table-container">
+                            <div class="flex justify-center items-center py-8">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                <span class="mr-2">جاري تحميل البيانات...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
+
+        // Load reservations data
+        this.loadReservationsData();
+        this.loadReservationsStats();
+    }
+
+    async loadReservationsStats() {
+        try {
+            const response = await axios.get('/api/admin/reservations-stats');
+            if (response.data.success) {
+                const stats = response.data.data;
+                document.getElementById('total-reservations').textContent = stats.total_reservations || 0;
+                document.getElementById('pending-reservations').textContent = stats.pending_reservations || 0;
+                document.getElementById('approved-reservations').textContent = stats.approved_reservations || 0;
+                document.getElementById('rejected-reservations').textContent = stats.rejected_reservations || 0;
+                document.getElementById('delivered-reservations').textContent = stats.delivered_reservations || 0;
+            }
+        } catch (error) {
+            console.error('Error loading reservations stats:', error);
+        }
+    }
+
+    async loadReservationsData() {
+        try {
+            const response = await axios.get('/api/admin/reservations');
+            if (response.data.success) {
+                this.renderReservationsTable(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error loading reservations data:', error);
+            this.showError('خطأ في تحميل بيانات الحجوزات');
+        }
+    }
+
+    renderReservationsTable(reservationsData) {
+        const container = document.getElementById('reservations-table-container');
+        if (!container) return;
+
+        if (reservationsData.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-inbox text-2xl text-gray-400"></i>
+                    </div>
+                    <p class="text-gray-500">لا توجد حجوزات حالياً</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">رقم الحجز</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المزارع</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">المحافظة</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الكمية</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">المبلغ</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">تاريخ التسليم</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الحالة</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        ${reservationsData.map(reservation => `
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">#${reservation.id}</div>
+                                    <div class="text-sm text-gray-500">${new Date(reservation.created_at).toLocaleDateString('ar-YE')}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">${reservation.farmer_name}</div>
+                                    <div class="text-sm text-gray-500">${reservation.farmer_phone}</div>
+                                    <div class="text-sm text-gray-500">هوية: ${reservation.farmer_id_number}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm text-gray-900">${reservation.province_name}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm font-medium text-gray-900">${reservation.total_quantity_kg} كيلو</span>
+                                    <div class="text-sm text-gray-500">${reservation.items_count} صنف</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm font-medium text-green-600">${this.formatPrice(reservation.total_amount)} ر.ي</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm text-gray-900">${new Date(reservation.delivery_date).toLocaleDateString('ar-YE')}</span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${this.getStatusBadgeClass(reservation.status)}">
+                                        ${this.getStatusText(reservation.status)}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <div class="flex justify-center space-x-2 space-x-reverse">
+                                        <button onclick="app.viewReservationDetails(${reservation.id})" 
+                                            class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition-colors">
+                                            <i class="fas fa-eye ml-1"></i>عرض
+                                        </button>
+                                        <button onclick="app.updateReservationStatus(${reservation.id}, '${reservation.status}')" 
+                                            class="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded transition-colors">
+                                            <i class="fas fa-edit ml-1"></i>تحديث
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    getStatusBadgeClass(status) {
+        switch(status) {
+            case 'pending': return 'bg-yellow-100 text-yellow-800';
+            case 'approved': return 'bg-green-100 text-green-800';
+            case 'rejected': return 'bg-red-100 text-red-800';
+            case 'delivered': return 'bg-purple-100 text-purple-800';
+            default: return 'bg-gray-100 text-gray-800';
+        }
+    }
+
+    getStatusText(status) {
+        switch(status) {
+            case 'pending': return 'في الانتظار';
+            case 'approved': return 'تمت الموافقة';
+            case 'rejected': return 'مرفوض';
+            case 'delivered': return 'تم التسليم';
+            default: return 'غير محدد';
+        }
+    }
+
+    async viewReservationDetails(reservationId) {
+        try {
+            const response = await axios.get(`/api/admin/reservations/${reservationId}`);
+            if (response.data.success) {
+                const { reservation, items } = response.data.data;
+                this.showReservationDetailsModal(reservation, items);
+            }
+        } catch (error) {
+            console.error('Error loading reservation details:', error);
+            this.showError('خطأ في تحميل تفاصيل الحجز');
+        }
+    }
+
+    showReservationDetailsModal(reservation, items) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">تفاصيل الحجز #${reservation.id}</h3>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <!-- Farmer Information -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-gray-800 mb-3">بيانات المزارع</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><span class="font-medium">الاسم:</span> ${reservation.farmer_name}</div>
+                            <div><span class="font-medium">رقم الهوية:</span> ${reservation.farmer_id_number}</div>
+                            <div><span class="font-medium">الهاتف:</span> ${reservation.farmer_phone}</div>
+                            <div><span class="font-medium">المحافظة:</span> ${reservation.province_name}</div>
+                            <div class="md:col-span-2"><span class="font-medium">العنوان:</span> ${reservation.farmer_address}</div>
+                        </div>
+                    </div>
+
+                    <!-- Reservation Information -->
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h4 class="font-semibold text-gray-800 mb-3">بيانات الحجز</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><span class="font-medium">تاريخ الطلب:</span> ${new Date(reservation.created_at).toLocaleDateString('ar-YE')}</div>
+                            <div><span class="font-medium">تاريخ التسليم:</span> ${new Date(reservation.delivery_date).toLocaleDateString('ar-YE')}</div>
+                            <div><span class="font-medium">طريقة التوزيع:</span> ${reservation.distribution_method === 'direct' ? 'التسليم المباشر' : 'عبر الموزع'}</div>
+                            <div><span class="font-medium">الحالة:</span> 
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${this.getStatusBadgeClass(reservation.status)}">
+                                    ${this.getStatusText(reservation.status)}
+                                </span>
+                            </div>
+                            ${reservation.distributor_name ? `
+                                <div><span class="font-medium">الموزع:</span> ${reservation.distributor_name}</div>
+                                <div><span class="font-medium">هاتف الموزع:</span> ${reservation.distributor_phone}</div>
+                            ` : ''}
+                        </div>
+                        ${reservation.notes ? `
+                            <div class="mt-3"><span class="font-medium">ملاحظات المزارع:</span> ${reservation.notes}</div>
+                        ` : ''}
+                        ${reservation.admin_notes ? `
+                            <div class="mt-3"><span class="font-medium">ملاحظات الإدارة:</span> ${reservation.admin_notes}</div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Order Items -->
+                    <div>
+                        <h4 class="font-semibold text-gray-800 mb-3">أصناف البذور المطلوبة</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">الصنف</th>
+                                        <th class="px-4 py-2 text-center text-xs font-medium text-gray-500">الكمية (كيلو)</th>
+                                        <th class="px-4 py-2 text-center text-xs font-medium text-gray-500">السعر للكيلو</th>
+                                        <th class="px-4 py-2 text-center text-xs font-medium text-gray-500">المجموع</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    ${items.map(item => `
+                                        <tr>
+                                            <td class="px-4 py-2">
+                                                <div class="font-medium">${item.seed_name}</div>
+                                                <div class="text-sm text-gray-500">${item.seed_description}</div>
+                                            </td>
+                                            <td class="px-4 py-2 text-center">${item.quantity_kg}</td>
+                                            <td class="px-4 py-2 text-center">${this.formatPrice(item.unit_price)} ر.ي</td>
+                                            <td class="px-4 py-2 text-center font-medium text-green-600">${this.formatPrice(item.total_price)} ر.ي</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                                <tfoot class="bg-gray-50">
+                                    <tr>
+                                        <td class="px-4 py-2 font-medium">المجموع الكلي</td>
+                                        <td class="px-4 py-2 text-center font-medium">${reservation.total_quantity_kg} كيلو</td>
+                                        <td class="px-4 py-2"></td>
+                                        <td class="px-4 py-2 text-center font-bold text-green-700">${this.formatPrice(reservation.total_amount)} ر.ي</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex justify-center space-x-3 space-x-reverse pt-4 border-t">
+                        <button onclick="app.updateReservationStatus(${reservation.id}, '${reservation.status}'); this.closest('.fixed').remove();" 
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-edit ml-2"></i>تحديث الحالة
+                        </button>
+                        <button onclick="this.closest('.fixed').remove()" 
+                            class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg transition-colors">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    updateReservationStatus(reservationId, currentStatus) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">تحديث حالة الحجز #${reservationId}</h3>
+                    <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">الحالة الجديدة</label>
+                    <select id="new-status-${reservationId}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="pending" ${currentStatus === 'pending' ? 'selected' : ''}>في الانتظار</option>
+                        <option value="approved" ${currentStatus === 'approved' ? 'selected' : ''}>تمت الموافقة</option>
+                        <option value="rejected" ${currentStatus === 'rejected' ? 'selected' : ''}>مرفوض</option>
+                        <option value="delivered" ${currentStatus === 'delivered' ? 'selected' : ''}>تم التسليم</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ملاحظات الإدارة</label>
+                    <textarea id="admin-notes-${reservationId}" rows="3" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="أضف ملاحظات إضافية (اختياري)"></textarea>
+                </div>
+                
+                <div class="flex space-x-3 space-x-reverse">
+                    <button onclick="app.saveReservationStatus(${reservationId})" 
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors">
+                        حفظ التحديث
+                    </button>
+                    <button onclick="this.closest('.fixed').remove()" 
+                        class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-lg transition-colors">
+                        إلغاء
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    async saveReservationStatus(reservationId) {
+        const newStatus = document.getElementById(`new-status-${reservationId}`).value;
+        const adminNotes = document.getElementById(`admin-notes-${reservationId}`).value.trim();
+        
+        this.showLoading(true);
+        try {
+            const response = await axios.put(`/api/admin/reservations/${reservationId}/status`, {
+                status: newStatus,
+                admin_notes: adminNotes || null
+            });
+
+            if (response.data.success) {
+                this.showSuccess('تم تحديث حالة الحجز بنجاح');
+                document.querySelector('.fixed.inset-0').remove();
+                this.loadReservationsData(); // Refresh the table
+                this.loadReservationsStats(); // Refresh stats
+            } else {
+                this.showError(response.data.error);
+            }
+        } catch (error) {
+            this.showError('خطأ في تحديث حالة الحجز');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    refreshReservationsData() {
+        this.loadReservationsData();
+        this.loadReservationsStats();
+        this.showSuccess('تم تحديث البيانات');
+    }
+
+    async generateQuotasReport() {
+        const container = document.getElementById('reports-content');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">تقرير حصص المحافظات</h3>
+                </div>
+                <div class="p-6">
+                    <div class="flex justify-center items-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span class="mr-2">جاري إنشاء التقرير...</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        try {
+            const response = await axios.get('/api/admin/quotas-report');
+            if (response.data.success) {
+                this.renderQuotasReportDetailed(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error generating quotas report:', error);
+            this.showError('خطأ في إنشاء تقرير الحصص');
+        }
+    }
+
+    renderQuotasReportDetailed(data) {
+        const container = document.getElementById('reports-content');
+        if (!container) return;
+
+        const totalQuota = data.reduce((sum, item) => sum + item.quota_tons, 0);
+        const totalConsumed = data.reduce((sum, item) => sum + item.consumed_quota, 0);
+        const totalRemaining = data.reduce((sum, item) => sum + item.remaining_quota, 0);
+
+        container.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-900">تقرير حصص المحافظات المفصل</h3>
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="app.exportQuotasReportPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm">
+                                <i class="fas fa-file-pdf ml-1"></i>تصدير PDF
+                            </button>
+                            <div class="text-sm text-gray-500">تاريخ التقرير: ${new Date().toLocaleDateString('ar-YE')}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Summary Cards -->
+                <div class="p-6 border-b border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="text-sm text-blue-600 font-medium">إجمالي الحصص</div>
+                            <div class="text-2xl font-bold text-blue-700">${totalQuota.toLocaleString()} طن</div>
+                            <div class="text-sm text-blue-600">في ${data.length} محافظة يمنية</div>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded-lg">
+                            <div class="text-sm text-red-600 font-medium">المستهلك</div>
+                            <div class="text-2xl font-bold text-red-700">${totalConsumed.toLocaleString()} طن</div>
+                            <div class="text-sm text-red-600">${totalQuota > 0 ? ((totalConsumed / totalQuota) * 100).toFixed(1) : 0}% من الإجمالي</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="text-sm text-green-600 font-medium">المتبقي</div>
+                            <div class="text-2xl font-bold text-green-700">${totalRemaining.toLocaleString()} طن</div>
+                            <div class="text-sm text-green-600">${totalQuota > 0 ? ((totalRemaining / totalQuota) * 100).toFixed(1) : 0}% من الإجمالي</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Table -->
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">المحافظة</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الحصة المقررة</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">المستهلك</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">المتبقي</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">نسبة الاستهلاك</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">عدد الحجوزات</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${data.map(item => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.province_name}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${item.quota_tons} طن</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-red-600 font-medium">${item.consumed_quota} طن</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-green-600 font-medium">${item.remaining_quota} طن</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                item.consumption_percentage > 80 ? 'bg-red-100 text-red-800' :
+                                                item.consumption_percentage > 60 ? 'bg-yellow-100 text-yellow-800' :
+                                                'bg-green-100 text-green-800'
+                                            }">
+                                                ${item.consumption_percentage}%
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${item.total_reservations}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async generateDistributorsReport() {
+        const container = document.getElementById('reports-content');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">تقرير الموزعين</h3>
+                </div>
+                <div class="p-6">
+                    <div class="flex justify-center items-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span class="mr-2">جاري إنشاء التقرير...</span>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        try {
+            const response = await axios.get('/api/admin/distributors');
+            if (response.data.success) {
+                this.renderDistributorsReportDetailed(response.data.data);
+            }
+        } catch (error) {
+            console.error('Error generating distributors report:', error);
+            this.showError('خطأ في إنشاء تقرير الموزعين');
+        }
+    }
+
+    renderDistributorsReportDetailed(data) {
+        const container = document.getElementById('reports-content');
+        if (!container) return;
+
+        const totalDistributors = data.length;
+        const activeDistributors = data.filter(d => d.is_active).length;
+        const averageCommission = totalDistributors > 0 ? data.reduce((sum, d) => sum + d.commission_percentage, 0) / totalDistributors : 0;
+        const totalReservations = data.reduce((sum, d) => sum + d.total_reservations, 0);
+
+        container.innerHTML = `
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold text-gray-900">تقرير الموزعين اليمنيين</h3>
+                        <div class="flex space-x-2 space-x-reverse">
+                            <button onclick="app.exportDistributorsReportPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm">
+                                <i class="fas fa-file-pdf ml-1"></i>تصدير PDF
+                            </button>
+                            <div class="text-sm text-gray-500">تاريخ التقرير: ${new Date().toLocaleDateString('ar-YE')}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Summary Cards -->
+                <div class="p-6 border-b border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <div class="text-sm text-blue-600 font-medium">إجمالي الموزعين</div>
+                            <div class="text-2xl font-bold text-blue-700">${totalDistributors}</div>
+                            <div class="text-sm text-blue-600">موزع في اليمن</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <div class="text-sm text-green-600 font-medium">الموزعين النشطين</div>
+                            <div class="text-2xl font-bold text-green-700">${activeDistributors}</div>
+                            <div class="text-sm text-green-600">${totalDistributors > 0 ? ((activeDistributors / totalDistributors) * 100).toFixed(1) : 0}% من الإجمالي</div>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded-lg">
+                            <div class="text-sm text-orange-600 font-medium">متوسط العمولة</div>
+                            <div class="text-2xl font-bold text-orange-700">${averageCommission.toFixed(1)}%</div>
+                            <div class="text-sm text-orange-600">عمولة متوسطة</div>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <div class="text-sm text-purple-600 font-medium">إجمالي الحجوزات</div>
+                            <div class="text-2xl font-bold text-purple-700">${totalReservations}</div>
+                            <div class="text-sm text-purple-600">عبر الموزعين</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Table -->
+                <div class="p-6">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الموزع</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">المحافظة</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">نسبة العمولة</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">عدد الحجوزات</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الحالة</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">التقييم</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${data.map(item => {
+                                    const performance = item.total_reservations > 10 ? 'ممتاز' : 
+                                                       item.total_reservations > 5 ? 'جيد' : 
+                                                       item.total_reservations > 0 ? 'مقبول' : 'لا يوجد';
+                                    const performanceClass = item.total_reservations > 10 ? 'text-green-600' : 
+                                                            item.total_reservations > 5 ? 'text-blue-600' : 
+                                                            item.total_reservations > 0 ? 'text-yellow-600' : 'text-gray-600';
+                                    return `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-gray-900">${item.name}</div>
+                                                <div class="text-sm text-gray-500">${item.phone}</div>
+                                                <div class="text-sm text-gray-500">${item.address}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${item.province_name}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    ${item.commission_percentage}%
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${item.total_reservations}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                    item.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                }">
+                                                    ${item.is_active ? 'نشط' : 'غير نشط'}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium ${performanceClass}">
+                                                ${performance}
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // PDF Export Functions
+    exportReportsPDF() {
+        // Generate combined PDF report
+        this.showSuccess('ميزة تصدير التقارير المجمعة قيد التطوير');
+    }
+
+    exportQuotasReportPDF() {
+        // Create a simple PDF export functionality
+        const printWindow = window.open('', '', 'height=600,width=800');
+        const content = document.getElementById('reports-content').innerHTML;
+        
+        printWindow.document.write(`
+            <html dir="rtl">
+            <head>
+                <title>تقرير حصص المحافظات اليمنية - ${new Date().toLocaleDateString('ar-YE')}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                    th { background-color: #f5f5f5; font-weight: bold; }
+                    .grid { display: none; }
+                    button { display: none; }
+                    .summary-cards { margin: 20px 0; }
+                    h1, h3 { text-align: center; color: #333; }
+                    @media print {
+                        button, .no-print { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>تقرير حصص المحافظات اليمنية</h1>
+                <p style="text-align: center;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-YE')}</p>
+                ${content}
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
+    }
+
+    exportDistributorsReportPDF() {
+        // Create a simple PDF export functionality for distributors
+        const printWindow = window.open('', '', 'height=600,width=800');
+        const content = document.getElementById('reports-content').innerHTML;
+        
+        printWindow.document.write(`
+            <html dir="rtl">
+            <head>
+                <title>تقرير الموزعين اليمنيين - ${new Date().toLocaleDateString('ar-YE')}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                    th { background-color: #f5f5f5; font-weight: bold; }
+                    .grid { display: none; }
+                    button { display: none; }
+                    .summary-cards { margin: 20px 0; }
+                    h1, h3 { text-align: center; color: #333; }
+                    @media print {
+                        button, .no-print { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>تقرير الموزعين اليمنيين</h1>
+                <p style="text-align: center;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-YE')}</p>
+                ${content}
+            </body>
+            </html>
+        `);
+        
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
     }
 
     // Add success message method

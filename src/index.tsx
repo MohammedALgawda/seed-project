@@ -344,6 +344,135 @@ app.get('/api/admin/consumption-stats', async (c) => {
   }
 });
 
+// Get all reservations for admin management
+app.get('/api/admin/reservations', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        r.id,
+        r.farmer_id,
+        r.total_quantity_kg,
+        r.total_amount,
+        r.delivery_date,
+        r.distribution_method,
+        r.status,
+        r.notes,
+        r.created_at,
+        f.name as farmer_name,
+        f.phone as farmer_phone,
+        f.id_number as farmer_id_number,
+        p.name as province_name,
+        d.name as distributor_name,
+        COUNT(ri.id) as items_count
+      FROM reservations r
+      INNER JOIN farmers f ON r.farmer_id = f.id
+      INNER JOIN provinces p ON r.province_id = p.id
+      LEFT JOIN distributors d ON r.distributor_id = d.id
+      LEFT JOIN reservation_items ri ON r.id = ri.reservation_id
+      GROUP BY r.id, r.farmer_id, r.total_quantity_kg, r.total_amount, r.delivery_date, 
+               r.distribution_method, r.status, r.notes, r.created_at, 
+               f.name, f.phone, f.id_number, p.name, d.name
+      ORDER BY r.created_at DESC
+    `).all();
+
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب بيانات الحجوزات' }, 500);
+  }
+});
+
+// Get reservation details with items
+app.get('/api/admin/reservations/:id', async (c) => {
+  try {
+    const reservationId = c.req.param('id');
+    
+    // Get reservation details
+    const reservation = await c.env.DB.prepare(`
+      SELECT 
+        r.*,
+        f.name as farmer_name,
+        f.phone as farmer_phone,
+        f.id_number as farmer_id_number,
+        f.address as farmer_address,
+        p.name as province_name,
+        d.name as distributor_name,
+        d.phone as distributor_phone,
+        d.address as distributor_address
+      FROM reservations r
+      INNER JOIN farmers f ON r.farmer_id = f.id
+      INNER JOIN provinces p ON r.province_id = p.id
+      LEFT JOIN distributors d ON r.distributor_id = d.id
+      WHERE r.id = ?
+    `).bind(reservationId).first();
+
+    if (!reservation) {
+      return c.json({ success: false, error: 'الحجز غير موجود' }, 404);
+    }
+
+    // Get reservation items
+    const { results: items } = await c.env.DB.prepare(`
+      SELECT 
+        ri.*,
+        sv.name as seed_name,
+        sv.description as seed_description
+      FROM reservation_items ri
+      INNER JOIN seed_varieties sv ON ri.seed_variety_id = sv.id
+      WHERE ri.reservation_id = ?
+    `).bind(reservationId).all();
+
+    return c.json({ success: true, data: { reservation, items } });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب تفاصيل الحجز' }, 500);
+  }
+});
+
+// Update reservation status
+app.put('/api/admin/reservations/:id/status', async (c) => {
+  try {
+    const reservationId = c.req.param('id');
+    const { status, admin_notes } = await c.req.json();
+    
+    if (!['pending', 'approved', 'rejected', 'delivered'].includes(status)) {
+      return c.json({ success: false, error: 'حالة غير صحيحة' }, 400);
+    }
+
+    await c.env.DB.prepare(`
+      UPDATE reservations 
+      SET status = ?, admin_notes = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).bind(status, admin_notes || null, reservationId).run();
+
+    return c.json({ 
+      success: true, 
+      message: 'تم تحديث حالة الحجز بنجاح'
+    });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في تحديث حالة الحجز' }, 500);
+  }
+});
+
+// Get reservations summary statistics
+app.get('/api/admin/reservations-stats', async (c) => {
+  try {
+    const { results: stats } = await c.env.DB.prepare(`
+      SELECT 
+        COUNT(*) as total_reservations,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_reservations,
+        COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_reservations,
+        COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_reservations,
+        COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered_reservations,
+        COALESCE(SUM(total_quantity_kg), 0) as total_quantity,
+        COALESCE(SUM(total_amount), 0) as total_amount,
+        COALESCE(AVG(total_amount), 0) as average_order_value
+      FROM reservations
+    `).all();
+
+    return c.json({ success: true, data: stats[0] || {} });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب إحصائيات الحجوزات' }, 500);
+  }
+});
+
 // Main page
 app.get('/', (c) => {
   return c.html(`
