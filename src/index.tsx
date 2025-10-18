@@ -49,7 +49,7 @@ app.get('/api/distributors/:provinceId', async (c) => {
   }
 });
 
-// Get all seed varieties
+// Get all seed varieties (for admin)
 app.get('/api/seed-varieties', async (c) => {
   try {
     const { results } = await c.env.DB.prepare(`
@@ -426,7 +426,7 @@ app.get('/api/admin/reservations/:id', async (c) => {
   }
 });
 
-// Update reservation status
+// Update reservation status with quota deduction
 app.put('/api/admin/reservations/:id/status', async (c) => {
   try {
     const reservationId = c.req.param('id');
@@ -436,18 +436,263 @@ app.put('/api/admin/reservations/:id/status', async (c) => {
       return c.json({ success: false, error: 'حالة غير صحيحة' }, 400);
     }
 
+    // Get current reservation details
+    const reservation = await c.env.DB.prepare(`
+      SELECT r.*, p.name as province_name, p.remaining_quota 
+      FROM reservations r 
+      INNER JOIN provinces p ON r.province_id = p.id 
+      WHERE r.id = ?
+    `).bind(reservationId).first();
+
+    if (!reservation) {
+      return c.json({ success: false, error: 'الحجز غير موجود' }, 404);
+    }
+
+    const currentStatus = reservation.status;
+    
+    // Handle quota changes when status changes
+    let quotaChange = 0;
+    let movementDescription = '';
+    
+    if (currentStatus !== status) {
+      // If changing from non-approved to approved: deduct quota
+      if (currentStatus !== 'approved' && status === 'approved') {
+        quotaChange = -reservation.total_quantity_kg;
+        movementDescription = `خصم حصة عند الموافقة على الحجز #${reservationId}`;
+        
+        // Check if enough quota available
+        if (reservation.remaining_quota < reservation.total_quantity_kg) {
+          return c.json({ 
+            success: false, 
+            error: `الكمية المطلوبة (${reservation.total_quantity_kg} كجم) تتجاوز الحصة المتاحة (${reservation.remaining_quota} كجم) للمحافظة` 
+          }, 400);
+        }
+      }
+      // If changing from approved to non-approved: add quota back
+      else if (currentStatus === 'approved' && status !== 'approved') {
+        quotaChange = reservation.total_quantity_kg;
+        movementDescription = `إرجاع حصة عند إلغاء الموافقة على الحجز #${reservationId}`;
+      }
+    }
+
+    // Start transaction-like operations
+    // Update reservation status
     await c.env.DB.prepare(`
       UPDATE reservations 
       SET status = ?, admin_notes = ?, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `).bind(status, admin_notes || null, reservationId).run();
 
+    // Update province quota if needed
+    if (quotaChange !== 0) {
+      const newQuota = reservation.remaining_quota + quotaChange;
+      
+      await c.env.DB.prepare(`
+        UPDATE provinces 
+        SET remaining_quota = ? 
+        WHERE id = ?
+      `).bind(newQuota, reservation.province_id).run();
+
+      // Record quota movement
+      await c.env.DB.prepare(`
+        INSERT INTO quota_movements 
+        (province_id, reservation_id, movement_type, quantity_kg, previous_quota, new_quota, description, admin_user)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        reservation.province_id,
+        reservationId,
+        quotaChange < 0 ? 'deduction' : 'addition',
+        Math.abs(quotaChange),
+        reservation.remaining_quota,
+        newQuota,
+        movementDescription,
+        'admin'
+      ).run();
+    }
+
     return c.json({ 
       success: true, 
-      message: 'تم تحديث حالة الحجز بنجاح'
+      message: 'تم تحديث حالة الحجز بنجاح',
+      quota_updated: quotaChange !== 0,
+      new_quota: quotaChange !== 0 ? reservation.remaining_quota + quotaChange : reservation.remaining_quota
     });
   } catch (error) {
+    console.error('Error updating reservation status:', error);
     return c.json({ success: false, error: 'خطأ في تحديث حالة الحجز' }, 500);
+  }
+});
+
+// Get/Set province seed allocations
+app.get('/api/admin/provinces/:id/allocations', async (c) => {
+  try {
+    const provinceId = c.req.param('id');
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        pa.*,
+        sv.name as seed_name,
+        sv.description as seed_description,
+        sv.price_per_kg,
+        sv.image_url
+      FROM province_allocations pa
+      INNER JOIN seed_varieties sv ON pa.seed_variety_id = sv.id
+      WHERE pa.province_id = ? AND pa.is_active = 1
+      ORDER BY sv.rank ASC, sv.name ASC
+    `).bind(provinceId).all();
+
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب تخصيصات المحافظة' }, 500);
+  }
+});
+
+app.post('/api/admin/provinces/:id/allocations', async (c) => {
+  try {
+    const provinceId = c.req.param('id');
+    const { seed_variety_id, allocated_quantity_kg, min_order_kg, max_order_kg } = await c.req.json();
+    
+    // Insert or update allocation
+    await c.env.DB.prepare(`
+      INSERT OR REPLACE INTO province_allocations 
+      (province_id, seed_variety_id, allocated_quantity_kg, min_order_kg, max_order_kg, admin_user, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(provinceId, seed_variety_id, allocated_quantity_kg, min_order_kg, max_order_kg, 'admin').run();
+
+    return c.json({ success: true, message: 'تم حفظ تخصيص الصنف للمحافظة' });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في حفظ التخصيص' }, 500);
+  }
+});
+
+app.delete('/api/admin/provinces/:provinceId/allocations/:allocationId', async (c) => {
+  try {
+    const allocationId = c.req.param('allocationId');
+    
+    await c.env.DB.prepare(`
+      UPDATE province_allocations 
+      SET is_active = 0, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).bind(allocationId).run();
+
+    return c.json({ success: true, message: 'تم حذف التخصيص' });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في حذف التخصيص' }, 500);
+  }
+});
+
+// Get allocated seed varieties for a specific province (for farmers)
+app.get('/api/seed-varieties/:provinceId', async (c) => {
+  try {
+    const provinceId = c.req.param('provinceId');
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        sv.*,
+        pa.allocated_quantity_kg,
+        pa.min_order_kg as province_min_order_kg,
+        pa.max_order_kg as province_max_order_kg
+      FROM seed_varieties sv
+      INNER JOIN province_allocations pa ON sv.id = pa.seed_variety_id
+      WHERE pa.province_id = ? AND pa.is_active = 1 AND sv.is_active = 1
+        AND pa.allocated_quantity_kg > 0
+      ORDER BY sv.rank ASC, sv.name ASC
+    `).bind(provinceId).all();
+
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب أصناف المحافظة' }, 500);
+  }
+});
+
+// Update reservation details (edit before approval)
+app.put('/api/admin/reservations/:id/edit', async (c) => {
+  try {
+    const reservationId = c.req.param('id');
+    const { items, delivery_date, edit_reason } = await c.req.json();
+    
+    // Get current reservation
+    const reservation = await c.env.DB.prepare(`
+      SELECT * FROM reservations WHERE id = ?
+    `).bind(reservationId).first();
+    
+    if (!reservation) {
+      return c.json({ success: false, error: 'الحجز غير موجود' }, 404);
+    }
+    
+    if (reservation.status !== 'pending') {
+      return c.json({ success: false, error: 'يمكن تعديل الطلبات المعلقة فقط' }, 400);
+    }
+
+    // Calculate new totals
+    let newTotalQuantity = 0;
+    let newTotalAmount = 0;
+    
+    for (const item of items) {
+      newTotalQuantity += parseFloat(item.quantity_kg);
+      newTotalAmount += parseFloat(item.total_price);
+    }
+
+    // Store original values if not already stored
+    const originalQuantity = reservation.original_total_quantity_kg || reservation.total_quantity_kg;
+    const originalAmount = reservation.original_total_amount || reservation.total_amount;
+
+    // Update reservation
+    await c.env.DB.prepare(`
+      UPDATE reservations 
+      SET total_quantity_kg = ?, total_amount = ?, delivery_date = ?,
+          original_total_quantity_kg = ?, original_total_amount = ?,
+          edited_by_admin = 1, edit_reason = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      newTotalQuantity, newTotalAmount, delivery_date,
+      originalQuantity, originalAmount,
+      edit_reason, reservationId
+    ).run();
+
+    // Delete existing items
+    await c.env.DB.prepare(`DELETE FROM reservation_items WHERE reservation_id = ?`).bind(reservationId).run();
+
+    // Insert new items
+    for (const item of items) {
+      await c.env.DB.prepare(`
+        INSERT INTO reservation_items (reservation_id, seed_variety_id, quantity_kg, unit_price, total_price)
+        VALUES (?, ?, ?, ?, ?)
+      `).bind(reservationId, item.seed_variety_id, item.quantity_kg, item.unit_price, item.total_price).run();
+    }
+
+    return c.json({ 
+      success: true, 
+      message: 'تم تحديث الطلب بنجاح',
+      new_total_quantity: newTotalQuantity,
+      new_total_amount: newTotalAmount
+    });
+  } catch (error) {
+    console.error('Error editing reservation:', error);
+    return c.json({ success: false, error: 'خطأ في تحديث الطلب' }, 500);
+  }
+});
+
+// Get quota movements for a province
+app.get('/api/admin/provinces/:id/quota-movements', async (c) => {
+  try {
+    const provinceId = c.req.param('id');
+    
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        qm.*,
+        r.id as reservation_number,
+        f.name as farmer_name
+      FROM quota_movements qm
+      LEFT JOIN reservations r ON qm.reservation_id = r.id
+      LEFT JOIN farmers f ON r.farmer_id = f.id
+      WHERE qm.province_id = ?
+      ORDER BY qm.created_at DESC
+      LIMIT 50
+    `).bind(provinceId).all();
+
+    return c.json({ success: true, data: results });
+  } catch (error) {
+    return c.json({ success: false, error: 'خطأ في جلب حركات الحصص' }, 500);
   }
 });
 

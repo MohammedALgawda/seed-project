@@ -43,9 +43,14 @@ class PotatoSeedsApp {
         }
     }
 
-    async loadSeedVarieties() {
+    async loadSeedVarieties(provinceId = null) {
         try {
-            const response = await axios.get('/api/seed-varieties');
+            let url = '/api/seed-varieties';
+            if (provinceId) {
+                url = `/api/seed-varieties/${provinceId}`;
+            }
+            
+            const response = await axios.get(url);
             if (response.data.success) {
                 this.seedVarieties = response.data.data;
             }
@@ -1012,7 +1017,7 @@ class PotatoSeedsApp {
                             </div>
                             <div class="flex items-center space-x-4 space-x-reverse">
                                 <span class="text-gray-700">مرحباً، ${this.currentStaff.full_name}</span>
-                                <button onclick="app.showSection('home')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                <button onclick="app.logout()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
                                     <i class="fas fa-sign-out-alt ml-1"></i>تسجيل الخروج
                                 </button>
                             </div>
@@ -1043,6 +1048,10 @@ class PotatoSeedsApp {
                             <button onclick="app.showAdminSection('reservations')" 
                                 class="admin-nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 text-gray-700 hover:text-blue-600 whitespace-nowrap transition-colors">
                                 <i class="fas fa-clipboard-list ml-1"></i>الحجوزات
+                            </button>
+                            <button onclick="app.showAdminSection('allocations')" 
+                                class="admin-nav-btn py-4 px-2 border-b-2 border-transparent hover:border-blue-500 text-gray-700 hover:text-blue-600 whitespace-nowrap transition-colors">
+                                <i class="fas fa-cogs ml-1"></i>تخصيصات المحافظات
                             </button>
                         </nav>
                     </div>
@@ -1093,6 +1102,9 @@ class PotatoSeedsApp {
             case 'reservations':
                 this.showReservationsManagement();
                 break;
+            case 'allocations':
+                this.showAllocationsManagement();
+                break;
         }
     }
 
@@ -1113,6 +1125,17 @@ class PotatoSeedsApp {
 
     showSuccess(message) {
         this.showMessage(message, 'success');
+    }
+
+    logout() {
+        // Clear current staff info
+        this.currentStaff = null;
+        
+        // Show confirmation message
+        this.showSuccess('تم تسجيل الخروج بنجاح');
+        
+        // Return to home section
+        this.showSection('home');
     }
 
     validateCart() {
@@ -2528,6 +2551,524 @@ class PotatoSeedsApp {
         this.loadReservationsData();
         this.loadReservationsStats();
         this.showSuccess('تم تحديث البيانات');
+    }
+
+    // Enhanced reservation details with edit capability
+    async viewReservationDetails(reservationId) {
+        this.showLoading(true);
+        try {
+            const response = await axios.get(`/api/admin/reservations/${reservationId}`);
+            if (response.data.success) {
+                const { reservation, items } = response.data.data;
+                this.showReservationModal(reservation, items);
+            } else {
+                this.showError('خطأ في جلب تفاصيل الحجز');
+            }
+        } catch (error) {
+            this.showError('خطأ في الاتصال بالخادم');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    showReservationModal(reservation, items) {
+        const statusLabels = {
+            'pending': 'في الانتظار',
+            'approved': 'تمت الموافقة', 
+            'rejected': 'مرفوض',
+            'delivered': 'تم التسليم'
+        };
+        
+        const statusColors = {
+            'pending': 'bg-yellow-100 text-yellow-800',
+            'approved': 'bg-green-100 text-green-800',
+            'rejected': 'bg-red-100 text-red-800', 
+            'delivered': 'bg-blue-100 text-blue-800'
+        };
+
+        const canEdit = reservation.status === 'pending';
+        const isEdited = reservation.edited_by_admin === 1;
+
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white border-b p-6">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-900">تفاصيل الحجز #${reservation.id}</h2>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6 space-y-6">
+                    <!-- Status and Edit Info -->
+                    <div class="flex justify-between items-center">
+                        <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColors[reservation.status]}">
+                            ${statusLabels[reservation.status]}
+                        </span>
+                        ${isEdited ? '<span class="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">تم التعديل بواسطة الإدارة</span>' : ''}
+                    </div>
+
+                    <!-- Farmer Information -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold mb-3">معلومات المزارع</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><strong>الاسم:</strong> ${reservation.farmer_name}</div>
+                            <div><strong>الهاتف:</strong> ${reservation.farmer_phone}</div>
+                            <div><strong>رقم الهوية:</strong> ${reservation.farmer_id_number}</div>
+                            <div><strong>المحافظة:</strong> ${reservation.province_name}</div>
+                        </div>
+                        <div class="mt-2"><strong>العنوان:</strong> ${reservation.farmer_address || 'غير محدد'}</div>
+                    </div>
+
+                    <!-- Order Information -->
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h3 class="font-semibold mb-3">معلومات الطلب</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><strong>إجمالي الكمية:</strong> ${reservation.total_quantity_kg} كجم</div>
+                            <div><strong>إجمالي المبلغ:</strong> ${reservation.total_amount.toLocaleString()} ر.ي</div>
+                            <div><strong>تاريخ التسليم:</strong> ${new Date(reservation.delivery_date).toLocaleDateString('ar')}</div>
+                            <div><strong>طريقة التوزيع:</strong> ${reservation.distribution_method === 'distributor' ? 'عن طريق الموزع' : 'استلام مباشر'}</div>
+                        </div>
+                        ${reservation.distributor_name ? `<div class="mt-2"><strong>الموزع:</strong> ${reservation.distributor_name}</div>` : ''}
+                    </div>
+
+                    ${isEdited ? `
+                        <div class="bg-orange-50 rounded-lg p-4">
+                            <h3 class="font-semibold mb-3">تفاصيل التعديل</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><strong>الكمية الأصلية:</strong> ${reservation.original_total_quantity_kg} كجم</div>
+                                <div><strong>المبلغ الأصلي:</strong> ${reservation.original_total_amount?.toLocaleString()} ر.ي</div>
+                            </div>
+                            ${reservation.edit_reason ? `<div class="mt-2"><strong>سبب التعديل:</strong> ${reservation.edit_reason}</div>` : ''}
+                        </div>
+                    ` : ''}
+
+                    <!-- Items Table -->
+                    <div>
+                        <h3 class="font-semibold mb-3">تفاصيل الأصناف</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full border border-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="border border-gray-200 px-4 py-2 text-right">الصنف</th>
+                                        <th class="border border-gray-200 px-4 py-2 text-center">الكمية (كجم)</th>
+                                        <th class="border border-gray-200 px-4 py-2 text-center">سعر الكيلو (ر.ي)</th>
+                                        <th class="border border-gray-200 px-4 py-2 text-center">الإجمالي (ر.ي)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(item => `
+                                        <tr>
+                                            <td class="border border-gray-200 px-4 py-2">
+                                                <div class="font-medium">${item.seed_name}</div>
+                                                <div class="text-sm text-gray-500">${item.seed_description}</div>
+                                            </td>
+                                            <td class="border border-gray-200 px-4 py-2 text-center">${item.quantity_kg}</td>
+                                            <td class="border border-gray-200 px-4 py-2 text-center">${item.unit_price.toLocaleString()}</td>
+                                            <td class="border border-gray-200 px-4 py-2 text-center font-medium">${item.total_price.toLocaleString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    ${reservation.admin_notes ? `
+                        <div class="bg-yellow-50 rounded-lg p-4">
+                            <h3 class="font-semibold mb-2">ملاحظات الإدارة</h3>
+                            <p class="text-gray-700">${reservation.admin_notes}</p>
+                        </div>
+                    ` : ''}
+
+                    <!-- Action Buttons -->
+                    <div class="flex space-x-3 space-x-reverse pt-4 border-t">
+                        ${canEdit ? `
+                            <button onclick="app.editReservation(${reservation.id}); this.closest('.fixed').remove();" 
+                                class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-edit ml-1"></i>تعديل الطلب
+                            </button>
+                        ` : ''}
+                        <button onclick="app.updateReservationStatus(${reservation.id}, '${reservation.status}'); this.closest('.fixed').remove();" 
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-edit ml-1"></i>تحديث الحالة
+                        </button>
+                        <button onclick="this.closest('.fixed').remove()" 
+                            class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg transition-colors">
+                            إغلاق
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+
+    async editReservation(reservationId) {
+        // Get current reservation details
+        this.showLoading(true);
+        try {
+            const response = await axios.get(`/api/admin/reservations/${reservationId}`);
+            if (response.data.success) {
+                const { reservation, items } = response.data.data;
+                this.showEditReservationModal(reservation, items);
+            }
+        } catch (error) {
+            this.showError('خطأ في جلب بيانات الحجز');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    showEditReservationModal(reservation, items) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="sticky top-0 bg-white border-b p-6">
+                    <h2 class="text-xl font-bold text-gray-900">تعديل الحجز #${reservation.id}</h2>
+                </div>
+
+                <div class="p-6 space-y-6">
+                    <form id="edit-reservation-form">
+                        <!-- Delivery Date -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">تاريخ التسليم</label>
+                            <input type="date" id="edit-delivery-date" value="${reservation.delivery_date}" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        </div>
+
+                        <!-- Items Table -->
+                        <div>
+                            <h3 class="font-semibold mb-3">تعديل الأصناف والكميات</h3>
+                            <div id="edit-items-container">
+                                ${items.map((item, index) => `
+                                    <div class="border rounded-lg p-4 mb-3" data-item-index="${index}">
+                                        <div class="grid grid-cols-4 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">الصنف</label>
+                                                <select class="w-full px-3 py-2 border border-gray-300 rounded-lg" 
+                                                    onchange="app.updateEditItemPrice(${index})" data-seed-id="${item.seed_variety_id}">
+                                                    <option value="${item.seed_variety_id}">${item.seed_name}</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">الكمية (كجم)</label>
+                                                <input type="number" min="1" value="${item.quantity_kg}" 
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                                    onchange="app.updateEditItemTotal(${index})">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">سعر الكيلو (ر.ي)</label>
+                                                <input type="number" readonly value="${item.unit_price}" 
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">الإجمالي (ر.ي)</label>
+                                                <input type="number" readonly value="${item.total_price}" 
+                                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
+                                            </div>
+                                        </div>
+                                        <button type="button" onclick="this.parentElement.remove(); app.updateEditTotals();" 
+                                            class="mt-2 text-red-600 hover:text-red-800 text-sm">
+                                            <i class="fas fa-trash ml-1"></i>حذف الصنف
+                                        </button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Edit Reason -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">سبب التعديل</label>
+                            <textarea id="edit-reason" rows="3" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                placeholder="اذكر سبب التعديل..."></textarea>
+                        </div>
+
+                        <!-- Totals -->
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><strong>إجمالي الكمية:</strong> <span id="edit-total-quantity">${reservation.total_quantity_kg}</span> كجم</div>
+                                <div><strong>إجمالي المبلغ:</strong> <span id="edit-total-amount">${reservation.total_amount.toLocaleString()}</span> ر.ي</div>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="flex space-x-3 space-x-reverse pt-4 border-t">
+                            <button type="button" onclick="app.saveReservationEdit(${reservation.id})" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-save ml-1"></i>حفظ التعديل
+                            </button>
+                            <button type="button" onclick="this.closest('.fixed').remove()" 
+                                class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg transition-colors">
+                                إلغاء
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        this.loadSeedVarietiesForEdit();
+    }
+
+    async loadSeedVarietiesForEdit() {
+        // Load available seed varieties for dropdowns
+        try {
+            const response = await axios.get('/api/seed-varieties');
+            if (response.data.success) {
+                const varieties = response.data.data;
+                document.querySelectorAll('#edit-items-container select').forEach(select => {
+                    const currentSeedId = select.dataset.seedId;
+                    select.innerHTML = varieties.map(variety => 
+                        `<option value="${variety.id}" ${variety.id == currentSeedId ? 'selected' : ''}>${variety.name}</option>`
+                    ).join('');
+                });
+            }
+        } catch (error) {
+            console.error('Error loading seed varieties:', error);
+        }
+    }
+
+    updateEditItemPrice(itemIndex) {
+        // Update price when seed variety changes
+        const container = document.querySelector(`[data-item-index="${itemIndex}"]`);
+        const select = container.querySelector('select');
+        const seedId = select.value;
+        
+        // Here you would fetch the price for the selected seed
+        // For now, we'll use a placeholder
+        const priceInput = container.querySelector('input[type="number"]:nth-of-type(2)');
+        // Fetch price from seedVarieties array or API call
+        this.updateEditItemTotal(itemIndex);
+    }
+
+    updateEditItemTotal(itemIndex) {
+        const container = document.querySelector(`[data-item-index="${itemIndex}"]`);
+        const quantityInput = container.querySelector('input[type="number"]:nth-of-type(1)');
+        const priceInput = container.querySelector('input[type="number"]:nth-of-type(2)');
+        const totalInput = container.querySelector('input[type="number"]:nth-of-type(3)');
+        
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        const total = quantity * price;
+        
+        totalInput.value = total;
+        this.updateEditTotals();
+    }
+
+    updateEditTotals() {
+        let totalQuantity = 0;
+        let totalAmount = 0;
+        
+        document.querySelectorAll('#edit-items-container [data-item-index]').forEach(container => {
+            const quantity = parseFloat(container.querySelector('input[type="number"]:nth-of-type(1)').value) || 0;
+            const total = parseFloat(container.querySelector('input[type="number"]:nth-of-type(3)').value) || 0;
+            
+            totalQuantity += quantity;
+            totalAmount += total;
+        });
+        
+        document.getElementById('edit-total-quantity').textContent = totalQuantity;
+        document.getElementById('edit-total-amount').textContent = totalAmount.toLocaleString();
+    }
+
+    async saveReservationEdit(reservationId) {
+        const deliveryDate = document.getElementById('edit-delivery-date').value;
+        const editReason = document.getElementById('edit-reason').value.trim();
+        
+        if (!editReason) {
+            this.showError('يجب إدخال سبب التعديل');
+            return;
+        }
+        
+        // Collect items data
+        const items = [];
+        document.querySelectorAll('#edit-items-container [data-item-index]').forEach(container => {
+            const seedId = container.querySelector('select').value;
+            const quantity = parseFloat(container.querySelector('input[type="number"]:nth-of-type(1)').value);
+            const price = parseFloat(container.querySelector('input[type="number"]:nth-of-type(2)').value);
+            const total = parseFloat(container.querySelector('input[type="number"]:nth-of-type(3)').value);
+            
+            if (seedId && quantity > 0 && price > 0) {
+                items.push({
+                    seed_variety_id: seedId,
+                    quantity_kg: quantity,
+                    unit_price: price,
+                    total_price: total
+                });
+            }
+        });
+        
+        if (items.length === 0) {
+            this.showError('يجب إضافة صنف واحد على الأقل');
+            return;
+        }
+        
+        this.showLoading(true);
+        try {
+            const response = await axios.put(`/api/admin/reservations/${reservationId}/edit`, {
+                items: items,
+                delivery_date: deliveryDate,
+                edit_reason: editReason
+            });
+            
+            if (response.data.success) {
+                this.showSuccess('تم تحديث الطلب بنجاح');
+                document.querySelector('.fixed.inset-0').remove();
+                this.loadReservationsData();
+            } else {
+                this.showError(response.data.error);
+            }
+        } catch (error) {
+            this.showError('خطأ في حفظ التعديل');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    // Allocations Management
+    async showAllocationsManagement() {
+        const content = document.getElementById('admin-content');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div class="space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-xl font-semibold text-gray-900">إدارة تخصيصات الأصناف للمحافظات</h2>
+                            <select id="province-selector" onchange="app.loadProvinceAllocations(this.value)"
+                                class="border border-gray-300 rounded-lg px-3 py-2">
+                                <option value="">اختر المحافظة</option>
+                                ${this.provinces.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="allocations-content">
+                            <div class="text-center py-8 text-gray-500">
+                                <i class="fas fa-arrow-up text-4xl mb-4"></i>
+                                <p>اختر محافظة لعرض وإدارة تخصيصاتها</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    async loadProvinceAllocations(provinceId) {
+        if (!provinceId) return;
+        
+        const container = document.getElementById('allocations-content');
+        container.innerHTML = `
+            <div class="flex justify-center items-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span class="mr-2">جاري تحميل البيانات...</span>
+            </div>
+        `;
+        
+        try {
+            const [allocationsRes, varietiesRes] = await Promise.all([
+                axios.get(`/api/admin/provinces/${provinceId}/allocations`),
+                axios.get('/api/seed-varieties')
+            ]);
+            
+            if (allocationsRes.data.success && varietiesRes.data.success) {
+                this.renderAllocationsTable(provinceId, allocationsRes.data.data, varietiesRes.data.data);
+            }
+        } catch (error) {
+            container.innerHTML = '<div class="text-center py-8 text-red-500">خطأ في تحميل البيانات</div>';
+        }
+    }
+
+    renderAllocationsTable(provinceId, allocations, allVarieties) {
+        const container = document.getElementById('allocations-content');
+        const provinceName = this.provinces.find(p => p.id == provinceId)?.name || '';
+        
+        container.innerHTML = `
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">تخصيصات محافظة ${provinceName}</h3>
+                    <button onclick="app.showAddAllocationModal(${provinceId})" 
+                        class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-plus ml-1"></i>إضافة تخصيص جديد
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الصنف</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الكمية المخصصة</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الحد الأدنى</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الحد الأقصى</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">السعر</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${allocations.map(allocation => `
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">${allocation.seed_name}</div>
+                                        <div class="text-sm text-gray-500">${allocation.seed_description}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${allocation.allocated_quantity_kg} كجم</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${allocation.min_order_kg} كجم</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${allocation.max_order_kg} كجم</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">${allocation.price_per_kg.toLocaleString()} ر.ي</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                                        <button onclick="app.editAllocation(${allocation.id})" 
+                                            class="text-blue-600 hover:text-blue-900 ml-3">تعديل</button>
+                                        <button onclick="app.deleteAllocation(${provinceId}, ${allocation.id})" 
+                                            class="text-red-600 hover:text-red-900">حذف</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                
+                ${allocations.length === 0 ? `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-seedling text-4xl mb-4"></i>
+                        <p>لم يتم تخصيص أي أصناف لهذه المحافظة بعد</p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    showAddAllocationModal(provinceId) {
+        // Implementation for adding new allocation
+        this.showSuccess('ميزة إضافة التخصيص قيد التطوير');
+    }
+
+    editAllocation(allocationId) {
+        // Implementation for editing allocation
+        this.showSuccess('ميزة تعديل التخصيص قيد التطوير');
+    }
+
+    async deleteAllocation(provinceId, allocationId) {
+        if (confirm('هل أنت متأكد من حذف هذا التخصيص؟')) {
+            try {
+                const response = await axios.delete(`/api/admin/provinces/${provinceId}/allocations/${allocationId}`);
+                if (response.data.success) {
+                    this.showSuccess('تم حذف التخصيص بنجاح');
+                    this.loadProvinceAllocations(provinceId);
+                }
+            } catch (error) {
+                this.showError('خطأ في حذف التخصيص');
+            }
+        }
     }
 
     async generateQuotasReport() {
